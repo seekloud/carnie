@@ -10,7 +10,7 @@ import javafx.animation.{Animation, AnimationTimer, KeyFrame, Timeline}
 import javafx.util.Duration
 import org.slf4j.LoggerFactory
 import akka.actor.typed.scaladsl.adapter._
-import org.seekloud.carnie.actor.BotActor.{Dead, Observation}
+import org.seekloud.carnie.actor.BotActor.{Dead, Observation, Restart}
 import org.seekloud.carnie.common.Context
 import org.seekloud.carnie.paperClient.ClientProtocol.PlayerInfoInClient
 import org.seekloud.carnie.scene.{GameScene, LayeredGameScene}
@@ -102,7 +102,9 @@ class BotController(player: PlayerInfoInClient,
         None
       )
       botActor ! Observation(humanObservation, Some(layeredObservation), grid.frameCount, true)
+//      println(s"======true !")
     } else {
+//      println(s"======false !")
       botActor ! Observation(None, None, grid.frameCount, false)
     }
 
@@ -175,6 +177,7 @@ class BotController(player: PlayerInfoInClient,
     msg match {
       case Protocol.Id(id) =>
         log.debug(s"i receive my id:$id")
+        println(s"playerInfo:::::::::::$player, id:$id")
 
       case Protocol.RoomId(roomId) =>
         botActor ! BotActor.RoomId(roomId)
@@ -398,8 +401,12 @@ class BotController(player: PlayerInfoInClient,
 
   def addDieSnake(frame: Int): Unit = {
     grid.historyDieSnake.get(frame).foreach { deadSnake =>
-      botActor ! Dead
-      isDead = true
+      if (deadSnake.contains(player.id)) {
+        botActor ! Dead
+//        println("死亡！！！！！")
+      }
+
+//      isDead = true
       grid.cleanDiedSnakeInfo(deadSnake)
     }
   }
@@ -409,7 +416,11 @@ class BotController(player: PlayerInfoInClient,
 //      if (newSnakes._1.map(_.id).contains(player.id) && !firstCome && !isContinue) spaceKey()
       newSnakes._1.foreach { s => grid.cleanSnakeTurnPoint(s.id) } //清理死前拐点
       grid.snakes ++= newSnakes._1.map(s => s.id -> s).toMap
-      if (newSnakes._1.exists(_.id == player.id)) isDead = false
+      if (newSnakes._1.exists(_.id == player.id)) {
+//        println(s"复活成功！！")
+        botActor ! Restart
+//        isDead = false
+      }
       grid.addNewFieldInfo(newSnakes._2)
     }
   }

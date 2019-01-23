@@ -77,6 +77,7 @@ object Api4GameAgent extends HttpUtil {
 
     postJsonRequestSend("post", url, Nil, data).map {
       case Right(jsonStr) =>
+        println(s"jsonnStr::::::$jsonStr")
         decode[BotKey2TokenRsp](jsonStr) match {
           case Right(res) =>
             Right(res.data)

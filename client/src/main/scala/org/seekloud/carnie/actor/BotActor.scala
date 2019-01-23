@@ -64,6 +64,8 @@ object BotActor {
 
   case object Dead extends Command
 
+  case object Restart extends Command
+
   case class Action(move: Move, replyTo: ActorRef[Long]) extends Command
 
   case class ReturnObservation(replyTo: ActorRef[(Option[ImgData], Option[LayeredObservation], Int, Boolean)]) extends Command
@@ -235,6 +237,7 @@ object BotActor {
 
         case Dead =>
           log.info(s"switch to dead behavior")
+          botController.isDead = true
           dead(actor, botController, playerInfo)
 
         case LeaveRoom=>
@@ -243,6 +246,13 @@ object BotActor {
 
         case GetFrame(replyTo) =>
           replyTo ! botController.grid.frameCount
+          Behaviors.same
+
+        case Reincarnation(replyTo) =>
+          log.info(s"has reincarnated!")
+//          actor ! PressSpace
+          replyTo ! SimpleRsp(state = State.in_game, msg = "ok")
+          //          botController.startGameLoop()
           Behaviors.same
 
         case unknown@_ =>
@@ -319,11 +329,54 @@ object BotActor {
           botController.grid.cleanSnakeTurnPoint(playerInfo.id)
           botController.grid.actionMap = botController.grid.actionMap.filterNot(_._2.contains(playerInfo.id))
           log.info(s"recv msg:$msg,frame:${botController.grid.frameCount}")
-          gaming(actor, botController, playerInfo)
+          waiting4ReStart(actor, botController, playerInfo)
 
         case Action(move, replyTo) =>
           replyTo ! -2L
           Behaviors.same
+
+        case Observation(obs) =>
+          if(BotServer.streamSender.nonEmpty){
+            BotServer.streamSender.get ! GrpcStreamSender.NewObservation(obs._1, obs._2, botController.myCurrentRank, obs._3, obs._4)
+          }
+          Behaviors.same
+
+        case ReturnObservation(replyTo) =>
+          replyTo ! (None, None, botController.grid.frameCount, false)
+          Behaviors.same
+
+        case ReturnObservationWithInfo(replyTo) =>
+          log.debug("rec ReturnObservationWithInfo when dead!!!!")
+          replyTo ! (None, None, botController.myCurrentRank, botController.grid.frameCount, false)
+          Behaviors.same
+
+        case GetFrame(replyTo) =>
+          replyTo ! botController.grid.frameCount
+          Behaviors.same
+
+        case unknown@_ =>
+          log.debug(s"i receive an unknown msg:$unknown when dead")
+          Behaviors.same
+      }
+    }
+  }
+
+  def waiting4ReStart(actor: ActorRef[Protocol.WsSendMsg],
+           botController: BotController,
+           playerInfo: PlayerInfoInClient)(implicit stashBuffer: StashBuffer[Command],
+                                           timer: TimerScheduler[Command]): Behavior[Command] = {
+    Behaviors.receive[Command] { (ctx, msg) =>
+      msg match {
+        case Reincarnation(replyTo) =>
+          replyTo ! SimpleRsp(state = State.in_game, msg = "ok")
+          log.info(s"has submit reincarnation")
+          Behaviors.same
+
+        case Restart =>
+          log.info(s"reStart")
+          botController.isDead = false
+          gaming(actor, botController, playerInfo)
+
 
         case Observation(obs) =>
           if(BotServer.streamSender.nonEmpty){
