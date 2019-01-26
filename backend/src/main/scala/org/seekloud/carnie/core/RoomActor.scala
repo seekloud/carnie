@@ -375,13 +375,13 @@ object RoomActor {
               if (u._1 == grid.currentRank.head.id) {
                 dispatchToPlayerAndWatcher(
                   subscribersMap, watcherMap, u._1,
-                  Protocol.WinData(grid.currentRank.head.area, None, userMap(grid.currentRank.head.id).name))
+                  WinMessage(grid.frameCount, WinData(grid.currentRank.head.area, None, userMap(grid.currentRank.head.id).name)))
               }
               else {
                 dispatchToPlayerAndWatcher(
                   subscribersMap, watcherMap, u._1,
-                  Protocol.WinData(grid.currentRank.head.area,
-                    grid.currentRank.filter(_.id == u._1).map(_.area).headOption, userMap(grid.currentRank.head.id).name)
+                  WinMessage(grid.frameCount, WinData(grid.currentRank.head.area,
+                    grid.currentRank.filter(_.id == u._1).map(_.area).headOption, userMap(grid.currentRank.head.id).name))
                 )
               }
 

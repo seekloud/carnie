@@ -66,6 +66,8 @@ class NetGameHolder(order: String, webSocketPara: WebSocketPara, mode: Int, img:
 
   var renderId = 0
 
+  var winFrame = -1
+
   private var myScore = BaseScore(0, 0, 0)
   private var maxArea: Short = 0
   private var winningData = WinData(0, Some(0), "")
@@ -235,6 +237,8 @@ class NetGameHolder(order: String, webSocketPara: WebSocketPara, mode: Int, img:
         grid.updateOnClient()
         addBackendInfo(grid.frameCount)
       }
+
+      if (winFrame == grid.frameCount) winMessage()
 
       thirdPart = System.currentTimeMillis() - logicFrameTime - secondPart
 
@@ -640,14 +644,13 @@ class NetGameHolder(order: String, webSocketPara: WebSocketPara, mode: Int, img:
           pingMap -= recvPingId
         }
 
-      case x@Protocol.WinData(winnerScore, yourScore, winnerName) =>
-        if (winnerName == myTrueId) maxArea = Constant.shortMax(maxArea, winnerScore)
+      case x@Protocol.WinMessage(frame, winData) =>
         println(s"receive winningData msg:$x")
-        winningData = x
-        myId = myTrueId
-        drawFunction = FrontProtocol.DrawGameWin(winnerName, grid.getWinData4Draw)
-        isWin = true
-        grid.cleanData()
+        winningData = x.winData
+        if (frame == grid.frameCount) winMessage()
+        else winFrame = frame
+
+
 
       case x@_ =>
         println(s"receive unknown msg:$x")
@@ -673,6 +676,14 @@ class NetGameHolder(order: String, webSocketPara: WebSocketPara, mode: Int, img:
     //                  backBtn.style.display="none"
     //                  rankCanvas.addEventListener("",null)
     dom.window.requestAnimationFrame(gameRender())
+  }
+
+  def winMessage(): Unit = {
+    if (winningData.winnerName == myTrueId) maxArea = Constant.shortMax(maxArea, winningData.winnerScore)
+    myId = myTrueId
+    drawFunction = FrontProtocol.DrawGameWin(winningData.winnerName, grid.getWinData4Draw)
+    isWin = true
+    grid.cleanData()
   }
 
   def addBackendInfo(frame: Int): Unit = {
