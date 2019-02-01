@@ -661,7 +661,7 @@ class NetGameHolder(order: String, webSocketPara: WebSocketPara, mode: Int, img:
       case x@Protocol.WinMessage(frame, winData) =>
         println(s"receive winningData msg:$x")
         winningData = x.winData
-        if (frame == grid.frameCount) winMessage()
+        if (frame <= grid.frameCount) winMessage()
         else winFrame = frame
 
 
